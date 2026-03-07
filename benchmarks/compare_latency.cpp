@@ -513,6 +513,10 @@ private:
 
 int main()
 {
+  std::ofstream file("benchmarks/data/comparison/latency_data.csv", std::ios::trunc);
+  std::println(file, "Name, Queue Size, Data Type, Num Bounces, Time (us)");
+  file.close();
+
   const int32_t num_values = 100000;
   const size_t num_test_runs = 50;
 

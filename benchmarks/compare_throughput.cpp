@@ -109,7 +109,7 @@ private:
 
     tm.stop();
     std::ofstream file("benchmarks/data/comparison/throughput_data.csv", std::ios::app);
-    std::println(file, "{}, {}, {}, {}, {}, {}, {}", queue_name, QUEUE_SIZE, "int32_t", num_producers, num_consumers, num_values, tm.get_ms());
+    std::println(file, "{}, {}, {}, {}, {}, {}, {}", queue_name, QUEUE_SIZE, "int32_t", num_producers, num_consumers, num_values, tm.get_us());
     file.close();
 
     if (total_count != num_values_per_producer * num_producers)
@@ -311,6 +311,10 @@ private:
 
 int main()
 {
+  std::ofstream file("benchmarks/data/comparison/throughput_data.csv", std::ios::trunc);
+  std::println(file, "Name, Queue Size, Data Type, Num Producers, Num Consumers, Num Values, Time (us)");
+  file.close();
+
   constexpr std::array<size_t, 4> num_options = {1, 2, 4, 6};
   const int32_t num_values = 1000000;
   const size_t num_test_runs = 10;

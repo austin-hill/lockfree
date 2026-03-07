@@ -47,7 +47,7 @@ df = pd.read_csv(csv_path)
 df.columns = df.columns.str.strip()
 
 # Calculate throughput: (num_values_per_producer * num_producers) / time_in_seconds
-df['Throughput'] = df['Num Values'] / (df['Time (ms)'] / 1000)
+df['Throughput'] = df['Num Values'] / (df['Time (us)'] / 1e6)
 
 # Get unique queue types, producers, and consumers
 queue_types = df['Name'].unique()
