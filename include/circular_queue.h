@@ -2,8 +2,16 @@
 
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cstddef>
+#include <new>
 #include <type_traits>
+
+#if defined(__GNUC__) || defined(__clang__)
+#define force_inline inline __attribute__((always_inline))
+#else
+#define force_inline __forceinline
+#endif
 
 #define force_inline inline __attribute__((always_inline))
 
@@ -17,23 +25,6 @@ force_inline constexpr void constexpr_for(F&& f)
     f();
     constexpr_for<Start + 1, End>(f);
   }
-}
-
-/*
-Returns k such that n = 2^k if n is a power of two, otherwise -1.
-*/
-consteval int get_power_base_two(size_t n)
-{
-  if (n == 2)
-  {
-    return 1;
-  }
-  else if ((n & 0x1) != 0 || n < 2)
-  {
-    return -1; // Not a power of two
-  }
-  int pow = get_power_base_two(n >> 1);
-  return (pow >= 0) ? pow + 1 : pow;
 }
 } // namespace lockfree_utils
 
@@ -85,13 +76,24 @@ force_inline void spin_pause()
 
 namespace lockfree
 {
-constexpr size_t CACHE_LINE_SIZE = 64;
+/*
+Disabling these warnings for the same reason as e.g. Folly - the vast majority of people are not building different parts of their application with different platform
+flags and then linking them later. If you are doing this for some reason (in particular, using -mcpu or -march=native for only part of your build), then you should
+hardcode this to 64/128 as appropriate.
+*/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winterference-size"
+constexpr size_t CACHE_LINE_SIZE = std::hardware_destructive_interference_size;
+#pragma GCC diagnostic pop
 
 template <typename T>
 concept copyable = std::is_trivially_copyable_v<T> && (sizeof(T) <= 16); // Copy types that can be passed in two registers, otherwise move
 
+template <typename T>
+concept copyable_or_nothrow_move_assignable = copyable<T> || std::is_nothrow_move_assignable_v<T>; // Copy types that can be passed in two registers, otherwise move
+
 template <size_t SIZE>
-concept power_of_two = (lockfree_utils::get_power_base_two(SIZE) != -1);
+concept power_of_two = std::has_single_bit(SIZE);
 
 /*
 @tparam T Data type
@@ -108,7 +110,7 @@ Based on testing, sensible choices for x86 processors might be the following:
 Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
 */
 template <typename T, size_t SIZE, bool MINIMISE_LATENCY = true, bool NONBLOCKING = true, size_t PAUSE_SHORT = 3, size_t PAUSE_LONG = 40>
-  requires power_of_two<SIZE>
+  requires power_of_two<SIZE> && copyable_or_nothrow_move_assignable<T>
 class circular_queue
 {
 public:
@@ -126,8 +128,8 @@ public:
   // May return false negative, but not false positive.
   bool was_empty()
   {
-    size_t prev_front = _front.load(std::memory_order_acquire); // Ensure prev_back is loaded AFTER this
-    size_t prev_back = _back.load(std::memory_order_relaxed);
+    uint64_t prev_front = _front.load(std::memory_order_acquire); // Ensure prev_back is loaded AFTER this
+    uint64_t prev_back = _back.load(std::memory_order_relaxed);
 
     return prev_back == prev_front;
   }
@@ -135,8 +137,8 @@ public:
   // May return false negative, but not false positive.
   bool was_full()
   {
-    size_t prev_back = _back.load(std::memory_order_acquire); // Ensure prev_front is loaded AFTER this
-    size_t prev_front = _front.load(std::memory_order_relaxed);
+    uint64_t prev_back = _back.load(std::memory_order_acquire); // Ensure prev_front is loaded AFTER this
+    uint64_t prev_front = _front.load(std::memory_order_relaxed);
 
     return prev_back == prev_front + SIZE;
   }
@@ -144,7 +146,7 @@ public:
   // May be useful for debug, but obviously not always accurate
   size_t was_size()
   {
-    return _back.load(std::memory_order_relaxed) - _front.load(std::memory_order_relaxed);
+    return std::clamp(static_cast<size_t>(_back.load(std::memory_order_relaxed) - _front.load(std::memory_order_relaxed)), static_cast<size_t>(0), SIZE);
   }
 
   /*
@@ -200,7 +202,7 @@ private:
   {
     while (true)
     {
-      size_t prev_back = _back.load(std::memory_order_relaxed);
+      uint64_t prev_back = _back.load(std::memory_order_relaxed);
 
       uint64_t cycle = (prev_back >> POW_TWO) + 1;
       uint64_t expected_state = ((cycle - 1) << 2) | slot_state::EMPTY; // Expect empty slot from last cycle (most likely)
@@ -241,7 +243,7 @@ private:
 
       if constexpr (NONBLOCKING)
       {
-        size_t prev_back_copy = prev_back;
+        uint64_t prev_back_copy = prev_back;
         _back.compare_exchange_weak(prev_back_copy, prev_back + 1, std::memory_order_relaxed, std::memory_order_relaxed); // Update back if nobody else did
       }
       else
@@ -270,7 +272,7 @@ private:
   {
     while (true)
     {
-      size_t prev_front = _front.load(std::memory_order_relaxed);
+      uint64_t prev_front = _front.load(std::memory_order_relaxed);
 
       uint64_t cycle = (prev_front >> POW_TWO) + 1;
       uint64_t expected_state = (cycle << 2) | slot_state::FULL; // Expect full slot from this cycle (most likely)
@@ -311,7 +313,7 @@ private:
 
       if constexpr (NONBLOCKING)
       {
-        size_t prev_front_copy = prev_front;
+        uint64_t prev_front_copy = prev_front;
         _front.compare_exchange_weak(prev_front_copy, prev_front + 1, std::memory_order_relaxed, std::memory_order_relaxed); // Update back if nobody else did
       }
       else
@@ -354,22 +356,22 @@ private:
     static constexpr uint64_t WRITING = 3;
   };
 
-  std::array<T, SIZE> _elements;
-  std::array<std::atomic<uint64_t>, SIZE> _states;
+  alignas(CACHE_LINE_SIZE) std::array<T, SIZE> _elements;
+  alignas(CACHE_LINE_SIZE) std::array<std::atomic<uint64_t>, SIZE> _states;
 
-  alignas(CACHE_LINE_SIZE) std::atomic<size_t> _front;
-  alignas(CACHE_LINE_SIZE) std::atomic<size_t> _back;
+  alignas(CACHE_LINE_SIZE) std::atomic<uint64_t> _front;
+  alignas(CACHE_LINE_SIZE) std::atomic<uint64_t> _back;
 
-  static constexpr size_t POW_TWO = static_cast<size_t>(lockfree_utils::get_power_base_two(SIZE)); // SIZE = 2^POW_TWO
+  static constexpr uint64_t POW_TWO = static_cast<uint64_t>(std::countr_zero(SIZE)); // SIZE = 2^POW_TWO
 
-  static constexpr size_t MODULO_MASK = SIZE - 1; // Given N, N & MODULO_MASK is equivalent to (and faster than) N % SIZE
+  static constexpr uint64_t MODULO_MASK = SIZE - 1; // Given N, N & MODULO_MASK is equivalent to (and faster than) N % SIZE
 
   /*
   If possible, we want concurrent readers/writers to be on separate cache lines to eliminate false sharing as much as possible. An odd step size guarantees full period, i.e. we still cycle through each element of _states, just not in order.
   A step of (CACHE_LINE_SIZE / 8) + 1 ensures that each subsequent access of the _states vector lies on a different cache line. This is backed up as a good choice by benchmarks.
   The exception to this is when we are optimising for throughput, since in this case we minimise contention by use of spin pause instead. Here, the better locality for the currently writing thread outweighs the added contention.
   */
-  static constexpr size_t STEP = (MINIMISE_LATENCY) ? (CACHE_LINE_SIZE / 8) + 1 : 1;
+  static constexpr uint64_t STEP = (MINIMISE_LATENCY) ? (CACHE_LINE_SIZE / 8) + 1 : 1;
 };
 
 } // namespace lockfree

@@ -59,7 +59,7 @@ public:
     // Get and store all results
     tm.stop();
     std::ofstream file("benchmarks/data/pause_lengths/latency_data.csv", std::ios::app);
-    std::println(file, "{}, nocas{}-{}, {}, {}, {}", QUEUE_SIZE, PS, PL, "int32_t", num_values, tm.get_ms());
+    std::println(file, "{}, {}-{}, {}, {}, {}", QUEUE_SIZE, PS, PL, "std::unique_ptr<example_struct>", num_values, tm.get_ms());
     file.close();
   };
 
@@ -69,7 +69,8 @@ private:
   {
     for (int32_t value = 1; value < num_bounces + 1; ++value)
     {
-      _queue1.push(value);
+      std::unique_ptr<example_struct> ptr;
+      _queue1.push(std::move(ptr));
       _queue2.pop();
       // while (!_queue2.try_pop(value))
       //   ;
@@ -80,7 +81,8 @@ private:
   {
     for (int32_t value = 1; value < num_bounces + 1; ++value)
     {
-      _queue2.push(value);
+      std::unique_ptr<example_struct> ptr;
+      _queue2.push(std::move(ptr));
       _queue1.pop();
       // while (!_queue1.try_pop(value))
       //   ;
@@ -88,8 +90,8 @@ private:
   }
 
 private:
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, false, PS, PL> _queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, false, PS, PL> _queue2;
+  lockfree::circular_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue1;
+  lockfree::circular_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue2;
 };
 
 void compare_pause_options()
