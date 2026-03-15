@@ -27,7 +27,7 @@
 #include <readerwritercircularbuffer.h>
 #include <readerwriterqueue.h>
 
-#include "circular_queue.h"
+#include "orbit/mpmc_queue.h"
 #include "timer.h"
 
 template <size_t QUEUE_SIZE = 128, size_t PS = 3, size_t PL = 40>
@@ -40,13 +40,13 @@ public:
 
   void run_benchmark(int32_t num_values)
   {
-    do_run_benchmark("lat_circular_queue", _lat_queue1, _lat_queue2, &latency_test::circular_queue_bounce_thread, num_values);
-    do_run_benchmark("tp_circular_queue", _tp_queue1, _tp_queue2, &latency_test::circular_queue_bounce_thread, num_values);
-    do_run_benchmark("ultra_tp_circular_queue", _ultra_tp_queue1, _ultra_tp_queue2, &latency_test::circular_queue_bounce_thread, num_values);
+    do_run_benchmark("lat_mpmc_queue", _lat_queue1, _lat_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("tp_mpmc_queue", _tp_queue1, _tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("ultra_tp_mpmc_queue", _ultra_tp_queue1, _ultra_tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
 
-    do_run_benchmark("lat_blocking_circular_queue", _lat_blocking_queue1, _lat_blocking_queue2, &latency_test::circular_queue_bounce_thread, num_values);
-    do_run_benchmark("tp_blocking_circular_queue", _tp_blocking_queue1, _tp_blocking_queue2, &latency_test::circular_queue_bounce_thread, num_values);
-    do_run_benchmark("ultra_tp_blocking_circular_queue", _ultra_tp_blocking_queue1, _ultra_tp_blocking_queue2, &latency_test::circular_queue_bounce_thread, num_values);
+    do_run_benchmark("lat_blocking_mpmc_queue", _lat_blocking_queue1, _lat_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("tp_blocking_mpmc_queue", _tp_blocking_queue1, _tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("ultra_tp_blocking_mpmc_queue", _ultra_tp_blocking_queue1, _ultra_tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
 
     do_run_benchmark("atomic_queue", _atomic_queue1, _atomic_queue2, &latency_test::atomic_queue_bounce_thread, num_values);
     do_run_benchmark("atomic_queue2", _atomic_queue21, _atomic_queue22, &latency_test::atomic_queue_bounce_thread, num_values);
@@ -98,7 +98,7 @@ private:
   There is duplication here, but this is to keep it simple for ease of changing when trying out different things during benchmarks.
   */
   template <typename T>
-  void circular_queue_bounce_thread(T& q1, T& q2, int32_t num_bounces)
+  void mpmc_queue_bounce_thread(T& q1, T& q2, int32_t num_bounces)
   {
     for (int32_t value = 1; value < num_bounces + 1; ++value)
     {
@@ -125,11 +125,11 @@ private:
     {
       while (!q1.try_push(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
       while (!q2.try_pop(val))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -142,11 +142,11 @@ private:
     {
       while (!q1.push(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
       while (!q2.pop(val))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -159,7 +159,7 @@ private:
       q1.push(value);
       while (!q2.pop())
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -173,7 +173,7 @@ private:
       q1.enqueue(value);
       while (!q2.try_dequeue(val))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -186,33 +186,33 @@ private:
     {
       while (!q1.try_enqueue(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
       while (!q2.try_dequeue(val))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
 
 private:
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue2;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue2;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue2;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue2;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue2;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue1;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue2;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue1;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue2;
 
   atomic_queue::AtomicQueue<int32_t, QUEUE_SIZE, 0, true, true, false, false> _atomic_queue1;
   atomic_queue::AtomicQueue<int32_t, QUEUE_SIZE, 0, true, true, false, false> _atomic_queue2;

@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-#include "circular_queue.h"
+#include "orbit/mpmc_queue.h"
 #include "timer.h"
 
 namespace
@@ -90,8 +90,8 @@ private:
   }
 
 private:
-  lockfree::circular_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue1;
-  lockfree::circular_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue2;
+  orbit::mpmc_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue1;
+  orbit::mpmc_queue<std::unique_ptr<example_struct>, QUEUE_SIZE, true, false, PS, PL> _queue2;
 };
 
 void compare_pause_options()

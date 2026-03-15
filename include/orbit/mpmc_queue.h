@@ -8,17 +8,17 @@
 #include <type_traits>
 
 #if defined(__GNUC__) || defined(__clang__)
-#define CIRCULAR_QUEUE_FORCE_INLINE inline __attribute__((always_inline))
+#define ORBIT_FORCE_INLINE inline __attribute__((always_inline))
 #else
-#define CIRCULAR_QUEUE_FORCE_INLINE __forceinline
+#define ORBIT_FORCE_INLINE __forceinline
 #endif
 
-#define CIRCULAR_QUEUE_FORCE_INLINE inline __attribute__((always_inline))
+#define ORBIT_FORCE_INLINE inline __attribute__((always_inline))
 
-namespace lockfree_utils
+namespace orbit::detail
 {
 template <auto Start, auto End, typename F>
-CIRCULAR_QUEUE_FORCE_INLINE constexpr void constexpr_for(F&& f) noexcept
+ORBIT_FORCE_INLINE constexpr void constexpr_for(F&& f) noexcept
 {
   if constexpr (Start < End)
   {
@@ -26,35 +26,35 @@ CIRCULAR_QUEUE_FORCE_INLINE constexpr void constexpr_for(F&& f) noexcept
     constexpr_for<Start + 1, End>(f);
   }
 }
-} // namespace lockfree_utils
+} // namespace orbit::detail
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 #include <immintrin.h>
-namespace lockfree
+namespace orbit
 {
 template <size_t NUM_PAUSES = 3>
-CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
+ORBIT_FORCE_INLINE void spin_pause() noexcept
 {
 
-  lockfree_utils::constexpr_for<0, NUM_PAUSES>(_mm_pause);
+  orbit::detail::constexpr_for<0, NUM_PAUSES>(_mm_pause);
 }
-} // namespace lockfree
+} // namespace orbit
 #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
-namespace lockfree
+namespace orbit
 {
 template <size_t NUM_PAUSES = 3>
-CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
+ORBIT_FORCE_INLINE void spin_pause() noexcept
 {
 
-  lockfree_utils::constexpr_for<0, NUM_PAUSES>(__yield);
+  orbit::detail::constexpr_for<0, NUM_PAUSES>(__yield);
 }
-} // namespace lockfree
+} // namespace orbit
 #else
 #warning "Unknown CPU architecture - using nop for spin loop pause."
-namespace lockfree_utils
+namespace orbit::detail
 {
 template <auto Start, auto End>
-CIRCULAR_QUEUE_FORCE_INLINE constexpr void repeat_nop() noexcept
+ORBIT_FORCE_INLINE constexpr void repeat_nop() noexcept
 {
   if constexpr (Start < End)
   {
@@ -62,19 +62,19 @@ CIRCULAR_QUEUE_FORCE_INLINE constexpr void repeat_nop() noexcept
     repeat_nop<Start + 1, End>();
   }
 }
-} // namespace lockfree_utils
+} // namespace orbit::detail
 
-namespace lockfree
+namespace orbit
 {
 template <size_t NUM_PAUSES = 100>
-CIRCULAR_QUEUE_FORCE_INLINE void spin_pause() noexcept
+ORBIT_FORCE_INLINE void spin_pause() noexcept
 {
-  lockfree_utils::repeat_nop<0, NUM_PAUSES>();
+  orbit::detail::repeat_nop<0, NUM_PAUSES>();
 }
-} // namespace lockfree
+} // namespace orbit
 #endif
 
-namespace lockfree
+namespace orbit
 {
 /*
 Disabling these warnings for the same reason as e.g. Folly - the vast majority of people are not building different parts of their application with different platform
@@ -99,7 +99,7 @@ concept power_of_two = std::has_single_bit(SIZE);
 @tparam T Data type
 @tparam SIZE Number of elements in the circular buffer (must be a power of two)
 @tparam MINIMISE_LATENCY When true, optimise for minimum latency, else optimise for maximum throughput
-@tparam NONBLOCKING When true, queue is truly lockfree. Can be set to false for even lower latency by removing a CAS operation.
+@tparam NONBLOCKING When true, queue is truly lock-free. Can be set to false for even lower latency by removing a CAS operation.
 @tparam PAUSE_SHORT Number of pause instructions between each spin loop
 @tparam PAUSE_SHORT Number of pause instructions between each spin loop after failed CAS in throughput mode only
 
@@ -111,10 +111,10 @@ Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel 
 */
 template <typename T, size_t SIZE, bool MINIMISE_LATENCY = true, bool NONBLOCKING = true, size_t PAUSE_SHORT = 3, size_t PAUSE_LONG = 40>
   requires power_of_two<SIZE> && std::is_default_constructible_v<T> && copyable_or_nothrow_move_assignable<T>
-class circular_queue
+class mpmc_queue
 {
 public:
-  circular_queue() noexcept(std::is_nothrow_default_constructible_v<T>)
+  mpmc_queue() noexcept(std::is_nothrow_default_constructible_v<T>)
   {
     _front.store(0);
     _back.store(0);
@@ -198,7 +198,7 @@ private:
   */
 
   template <bool return_if_full>
-  CIRCULAR_QUEUE_FORCE_INLINE bool do_push(std::conditional_t<copyable<T>, T, T&&> element) noexcept
+  ORBIT_FORCE_INLINE bool do_push(std::conditional_t<copyable<T>, T, T&&> element) noexcept
   {
     while (true)
     {
@@ -268,7 +268,7 @@ private:
   }
 
   template <bool return_if_empty>
-  CIRCULAR_QUEUE_FORCE_INLINE bool do_pop(T& result) noexcept
+  ORBIT_FORCE_INLINE bool do_pop(T& result) noexcept
   {
     while (true)
     {
@@ -336,7 +336,7 @@ private:
     }
   };
 
-  CIRCULAR_QUEUE_FORCE_INLINE void do_spin_pause() noexcept
+  ORBIT_FORCE_INLINE void do_spin_pause() noexcept
   {
     if constexpr (MINIMISE_LATENCY)
     {
@@ -374,4 +374,4 @@ private:
   static constexpr uint64_t STEP = (MINIMISE_LATENCY) ? (CACHE_LINE_SIZE / 8) + 1 : 1;
 };
 
-} // namespace lockfree
+} // namespace orbit

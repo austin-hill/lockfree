@@ -8,7 +8,7 @@
 #include <thread>
 #include <vector>
 
-#include "circular_queue.h"
+#include "orbit/mpmc_queue.h"
 #include "timer.h"
 
 class test
@@ -94,7 +94,7 @@ private:
     }
   }
 
-  lockfree::circular_queue<int, 128, true, false> _queue;
+  orbit::mpmc_queue<int, 128, true, true> _queue;
 
   std::atomic<bool> _cancel_threads = false;
 };

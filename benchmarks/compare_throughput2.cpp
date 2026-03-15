@@ -27,7 +27,7 @@
 #include <readerwritercircularbuffer.h>
 #include <readerwriterqueue.h>
 
-#include "circular_queue.h"
+#include "orbit/mpmc_queue.h"
 #include "timer.h"
 
 template <size_t QUEUE_SIZE = 2048, size_t PS = 3, size_t PL = 40>
@@ -40,12 +40,12 @@ public:
 
   void speed_test(int32_t num_producers, int32_t num_consumers, int32_t num_values)
   {
-    do_speed_test("lat_circular_queue", _lat_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("tp_circular_queue", _tp_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("ultra_tp_circular_queue", _ultra_tp_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("lat_blocking_circular_queue", _lat_blocking_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("tp_blocking_circular_queue", _tp_blocking_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("ultra_tp_blocking_circular_queue", _ultra_tp_blocking_queue, &test::circular_queue_push_thread, &test::circular_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("lat_mpmc_queue", _lat_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("tp_mpmc_queue", _tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("ultra_tp_mpmc_queue", _ultra_tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("lat_blocking_mpmc_queue", _lat_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("tp_blocking_mpmc_queue", _tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("ultra_tp_blocking_mpmc_queue", _ultra_tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
 
     do_speed_test("atomic_queue", _atomic_queue, &test::atomic_queue_push_thread, &test::atomic_queue_pop_thread, num_producers, num_consumers, num_values);
     do_speed_test("atomic_queue2", _atomic_queue2, &test::atomic_queue_push_thread, &test::atomic_queue_pop_thread, num_producers, num_consumers, num_values);
@@ -114,7 +114,7 @@ private:
 
 private:
   template <typename T>
-  void circular_queue_push_thread(T& q, int32_t start_index, int32_t num_values)
+  void mpmc_queue_push_thread(T& q, int32_t start_index, int32_t num_values)
   {
     for (int32_t value = start_index + 1; value < start_index + num_values + 1; ++value)
     {
@@ -123,7 +123,7 @@ private:
   }
 
   template <typename T>
-  void circular_queue_pop_thread(T& q, int32_t num_values)
+  void mpmc_queue_pop_thread(T& q, int32_t num_values)
   {
     for (int32_t i = 1; i < num_values + 1; ++i)
     {
@@ -166,7 +166,7 @@ private:
     {
       while (!q.try_pop(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -188,7 +188,7 @@ private:
     {
       while (!q.try_dequeue(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -200,7 +200,7 @@ private:
     {
       while (!q.push(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
@@ -213,19 +213,19 @@ private:
     {
       while (!q.pop(value))
       {
-        lockfree::spin_pause<1>();
+        orbit::spin_pause<1>();
       }
     }
   }
 
 private:
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, true, PS, PL> _lat_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, PL> _tp_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, true, PS, 100> _ultra_tp_queue;
 
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, true, false, 2, PL> _lat_blocking_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, PL> _tp_blocking_queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, 2, 100> _ultra_tp_blocking_queue;
 
   atomic_queue::AtomicQueue<int32_t, QUEUE_SIZE, 0, true, true, false, false> _atomic_queue;
   atomic_queue::AtomicQueue2<int32_t, QUEUE_SIZE, true, true, false, false> _atomic_queue2;

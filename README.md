@@ -1,4 +1,4 @@
-# Circular Queue
+# Orbit
 
 This is a high performance lock-free multi-producer multi-consumer bounded queue. It is implemented as a single header only library in C++20 (although the benchmarks use C++23 for convenience).
 
@@ -34,7 +34,7 @@ Note that all of my benchmarking has been done on x86, although I have done some
 
 The queue is provided as a single header which you can include into your project.
 
-There are several template parameters to configure the queue. First, you must provide the data type and queue size. Then we provide two primary modes via a boolean flag - true to minimise latency (the default configuration), false to maximise throughput. We also provide a flag NONBLOCKING which defaults to true. If you want the lowest possible average latency and don't care much about theoretical guarantees of lockfree behaviour, you can set this to false. This removes one of the two CAS operations in the push/pop operations, leading to significantly lower latency on average. Then there are some (optional but recommended) pause length parameters which depend on the platform - there are benchmarks that can be used to choose these (more on this below), or alternatively guidance is provided for appropriate values.
+There are several template parameters to configure the queue. First, you must provide the data type and queue size. Then we provide two primary modes via a boolean flag - true to minimise latency (the default configuration), false to maximise throughput. We also provide a flag NONBLOCKING which defaults to true. If you want the lowest possible average latency and don't care much about theoretical guarantees of lock-free behaviour, you can set this to false. This removes one of the two CAS operations in the push/pop operations, leading to significantly lower latency on average. Then there are some (optional but recommended) pause length parameters which depend on the platform - there are benchmarks that can be used to choose these (more on this below), or alternatively guidance is provided for appropriate values.
 
 We provide the following public methods (note `T/T&&` indicates that it accepts a pass by value only if the type is trivially copyable and <= 16 bytes):
 - `push(T/T&& element)` Push an element to the queue, and busy wait if it is full.
@@ -48,12 +48,12 @@ We provide the following public methods (note `T/T&&` indicates that it accepts 
 Note that the size of the queue must be a power of two - using a different size will produce a compilation error. Furthermore, for non-trivially copyable types, and any type of size greater than 16 bytes, the queue is move-only. Finally, if you use the `try_push`/`try_pop` functions in a spin loop, you do not need to add a spin pause as this is built in and tuned for optimum performance already. Note that there is no measurable performance hit from using these methods, unlike some [other implementations](#throughput)!
 
 ```
-#include <circular_queue.h>
+#include <orbit/mpmc_queue.h>
 
 struct msg_t { ... };
 
 // Queue of integers of size 1024, minimise latency mode
-lockfree::circular_queue<int, 1024, true> q;
+orbit::mpmc_queue<int, 1024, true> q;
 
 std::unique_ptr<msg_t> message = std::make_unique<msg_t>(...);
 
@@ -113,4 +113,4 @@ This started as essentially a challenge to myself to fully implement a lock-free
 
 The core of the queue is essentially a (non-atomic) circular buffer, which we step through with an odd stride length (which depends on whether we are optimising for latency or throughput), together with a second circular buffer storing state and synchronising the reads and writes using a standard acquire-release pattern.
 
-Please see [my website](https://austinhill.me/posts/lockfree-queue/) for a full write up of this project, where I dive into the core of the algorithm in all presented variants, describe the optimisation process and present some useful graphs to visualise where some of the performance is gained.
+Please see [my website](https://austinhill.me/posts/lock-free-queue/) for a full write up of this project, where I dive into the core of the algorithm in all presented variants, describe the optimisation process and present some useful graphs to visualise where some of the performance is gained.

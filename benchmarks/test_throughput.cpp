@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-#include "circular_queue.h"
+#include "orbit/mpmc_queue.h"
 #include "timer.h"
 
 struct example_struct
@@ -118,7 +118,7 @@ private:
 
 private:
   static constexpr size_t QUEUE_SIZE = 128;
-  lockfree::circular_queue<int32_t, QUEUE_SIZE, false, false, PS, PL> _queue;
+  orbit::mpmc_queue<int32_t, QUEUE_SIZE, false, false, PS, PL> _queue;
 
   std::atomic<bool> _cancel_threads = false;
 };
