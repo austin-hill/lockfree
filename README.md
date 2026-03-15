@@ -47,7 +47,7 @@ We provide the following public methods (note `T/T&&` indicates that it accepts 
 
 Note that the size of the queue must be a power of two - using a different size will produce a compilation error. Furthermore, for non-trivially copyable types, and any type of size greater than 16 bytes, the queue is move-only. Finally, if you use the `try_push`/`try_pop` functions in a spin loop, you do not need to add a spin pause as this is built in and tuned for optimum performance already. Note that there is no measurable performance hit from using these methods, unlike some [other implementations](#throughput)!
 
-```
+```cpp
 #include <orbit/mpmc_queue.h>
 
 struct msg_t { ... };
@@ -59,7 +59,8 @@ std::unique_ptr<msg_t> message = std::make_unique<msg_t>(...);
 
 q.push(std::move(message));
 
-if (q.try_pop())
+std::unique_ptr<msg_t> received_message;
+if (q.try_pop(received_message))
 {
     ...
 }
@@ -88,6 +89,35 @@ For the second benchmark, each consumer simply pops a fixed number of elements (
 
 ![throughput comparison 2](./benchmarks/plots/comparison/throughput2.png)
 
+## Installation
+
+Orbit is a single header library. The simplest approach is to just copy `include/orbit/mpmc_queue.h` into your project.
+
+Alternatively, if you use CMake or Meson, you can pull it in directly.
+
+**CMake (FetchContent)**
+```cmake
+include(FetchContent)
+FetchContent_Declare(orbit
+    GIT_REPOSITORY https://github.com/austin-hill/orbit
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(orbit)
+target_link_libraries(my_target PRIVATE orbit::orbit)
+```
+
+**Meson (subproject)**
+Either clone the repo into your `subprojects/` directory, or create a [wrap file](https://mesonbuild.com/Wrap-dependency-system-manual.html). Then in your `meson.build`:
+
+```meson
+orbit_dep = dependency('orbit', fallback: ['orbit', 'orbit_dep'])
+```
+
+Then in either case:
+```cpp
+#include <orbit/mpmc_queue.h>
+```
+
 ## Tuning the queue for your platform
 
 Depending on your CPU architecture, your spin pause length may differ significantly. Based on limited testing, the following choices may work well for x86 processors:
@@ -105,7 +135,7 @@ If you want the maximum performance, you may wish to benchmark using `benchmarks
 
 ## Testing
 
-The script `tests/test_correctness.cpp` is designed to test the safety of the queue by essentially running a throughput benchmark for varying numbers of producers and consumers in order to achieve maximum contention in a variety of circumstances, whilst also storing the results and ensuring that what went into the queue came out the same. I have run this test extensively on both x86 and ARM platforms with no issues. Furthermore, the throughput benchmark also verifies that the number of values pushed matches the number of values received. However, a formal proof of correctness would require more leg work than I am willing to spend right now, thus I cannot guarantee there are no extreme edge cases that lead to UB.
+The script `tests/test_correctness.cpp` is designed to test the safety of the queue by essentially running a throughput benchmark for varying numbers of producers and consumers in order to achieve maximum contention in a variety of circumstances, whilst also storing the results and ensuring that what went into the queue came out the same. I have run this test extensively on both x86 and ARM platforms with no issues. Furthermore, the throughput benchmark also verifies that the number of values pushed matches the number of values received. However, a formal proof of correctness would require more leg work than I am willing to spend right now, so in the unlikely event you encounter any problems, feel free to open a github issue.
 
 ## Design, Implementation and Optimisation Decisions
 
