@@ -78,7 +78,7 @@ namespace lockfree
 {
 /*
 Disabling these warnings for the same reason as e.g. Folly - the vast majority of people are not building different parts of their application with different platform
-flags and then linking them later. If you are doing this for some reason (in particular, using -mcpu or -march=native for only part of your build), then you should
+flags and then linking them later. If you are doing this for some reason (for example, using -mcpu or -march=native for only part of your build), then you should
 hardcode this to 64/128 as appropriate.
 */
 #pragma GCC diagnostic push

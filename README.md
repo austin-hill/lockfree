@@ -80,7 +80,7 @@ For this test, we take two queues, and in two threads repeatedly push to one que
 
 Here, we simply push 1000000 integers through the queue for varying numbers of producers and consumers, and measure the time taken. We offer two benchmarks here.
 
-The first uses the common "push" and "try_pop" pattern - consumer threads will monitor for cancellation, and clear out the queue before exiting. Note that many existing implementation struggle with this: `atomic_queue` suffers a huge performance hit when using `try_pop`, and `ramalhete_queue` does not offer any method to determine whether the queue is empty (or the current size).
+The first uses the common "push" and "try_pop" pattern - consumer threads will monitor for cancellation, and clear out the queue before exiting. Note that many existing implementation struggle with this: `atomic_queue` suffers a huge performance hit when using `try_pop`, and `ramalhete_queue` does not offer any method to determine whether the queue is empty (or the current size), whilst other queues that did provide these methods did not offer guarantees of over or underestimation (so false positive `empty` results were allowed, for example).
 
 ![throughput comparison 1](./benchmarks/plots/comparison/throughput.png)
 
@@ -109,4 +109,8 @@ The script `tests/test_correctness.cpp` is designed to test the safety of the qu
 
 ## Design, Implementation and Optimisation Decisions
 
-Please see [my website](https://austinhill.me/posts/lockfree-queue/) for a full write up of this project, as well as some motivation and background.
+This started as essentially a challenge to myself to fully implement a lock-free queue in C++, without looking at any existing solutions. My background is in pure mathematics (particularly analysis and analytic number theory), so please bear in mind that I may not be using the all the standard terminology, as I still don't know most of the conventions in this space.
+
+The core of the queue is essentially a (non-atomic) circular buffer, which we step through with an odd stride length (which depends on whether we are optimising for latency or throughput), together with a second circular buffer storing state and synchronising the reads and writes using a standard acquire-release pattern.
+
+Please see [my website](https://austinhill.me/posts/lockfree-queue/) for a full write up of this project, where I dive into the core of the algorithm in all presented variants, describe the optimisation process and present some useful graphs to visualise where some of the performance is gained.
