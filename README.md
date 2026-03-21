@@ -24,8 +24,7 @@ More precisely, in terms of performance figures, you should consider using this 
 Obviously, if in doubt run your own benchmarks to choose the best solution for your use case! There are of course some cases where better solutions exist elsewhere. We list some here:
 
 - You want an unbounded queue. In which case, a block-based linked queue such as `xenium/ramalhete_queue` would be your best bet, both in terms of latency and throughput.
-- You want the lowest latency strictly SPSC queue. In which case, `atomic_queue` used in SPSC mode should give better results.
-- You want the highest throughput SPSC queue and only need blocking `push` and `pop` operations. In which case, `atomic_queue` used in SPSC mode should give better results.
+- You only need blocking `push` and `pop` operations and are only pushing atomic types to the queue. In which case, `atomic_queue` used in SPSC mode should give better results.
 - You are running on a virtualised CPU. I doubt that some of the optimisations used here would play well with the scheduler in this case...
 
 Note that all of my benchmarking has been done on x86, although I have done some testing on ARM to verify the functionality, as memory barriers are different here. I may return to this in future.
@@ -60,7 +59,7 @@ if (q.try_pop(result)) { ... }
 
 ## Benchmarks
 
-We provide a selection of benchmarks to compare against existing implementations. All benchmarks were run on an AMD Ryzen 5600X. We show a few different configurations of our queue: Optimised for latency or throughput, and truly lock-free or the faster version described above. We colour our queue optimised for latency in yellow, throughput in red, and more aggressively optimised for throughput in black. Note that the queues in grey are _SPSC-only_.
+We provide a selection of benchmarks to compare against existing implementations. All benchmarks were run on an AMD Ryzen 5600X. We show a few different configurations of our queue: Optimised for latency or throughput, and truly lock-free or the faster version described above. We colour our queue optimised for latency in yellow, throughput in red, and more aggressively optimised for throughput in black. Note that the queues in grey are _SPSC-only_, and `atomic_queue` is marked hatched as it only supports atomic types, not strings, structs, unique pointers etc.
 
 ### Latency
 

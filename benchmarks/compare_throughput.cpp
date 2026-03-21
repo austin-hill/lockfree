@@ -40,13 +40,13 @@ public:
 
   void speed_test(int32_t num_producers, int32_t num_consumers, int32_t num_values)
   {
-    do_speed_test("lat_mpmc_queue", _lat_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("tp_mpmc_queue", _tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("ultra_tp_mpmc_queue", _ultra_tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("lat_orbit_mpmc_queue", _lat_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("tp_orbit_mpmc_queue", _tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("ultra_tp_orbit_mpmc_queue", _ultra_tp_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
 
-    do_speed_test("lat_blocking_mpmc_queue", _lat_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("tp_blocking_mpmc_queue", _tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
-    do_speed_test("ultra_tp_blocking_mpmc_queue", _ultra_tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("lat_blocking_orbit_mpmc_queue", _lat_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("tp_blocking_orbit_mpmc_queue", _tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
+    do_speed_test("ultra_tp_blocking_orbit_mpmc_queue", _ultra_tp_blocking_queue, &test::mpmc_queue_push_thread, &test::mpmc_queue_pop_thread, num_producers, num_consumers, num_values);
 
     do_speed_test("atomic_queue", _atomic_queue, &test::atomic_queue_push_thread, &test::atomic_queue_pop_thread, num_producers, num_consumers, num_values);
     do_speed_test("atomic_queue2", _atomic_queue2, &test::atomic_queue_push_thread, &test::atomic_queue_pop_thread, num_producers, num_consumers, num_values);

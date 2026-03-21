@@ -8,13 +8,15 @@
 #include <new>
 #include <type_traits>
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
+#include <immintrin.h>
+#endif
+
 #if defined(__GNUC__) || defined(__clang__)
 #define ORBIT_FORCE_INLINE inline __attribute__((always_inline))
 #else
 #define ORBIT_FORCE_INLINE __forceinline
 #endif
-
-#define ORBIT_FORCE_INLINE inline __attribute__((always_inline))
 
 namespace orbit::detail
 {
@@ -27,65 +29,56 @@ ORBIT_FORCE_INLINE constexpr void constexpr_for(F&& f) noexcept
     constexpr_for<Start + 1, End>(f);
   }
 }
-} // namespace orbit::detail
 
+ORBIT_FORCE_INLINE void do_single_pause() noexcept
+{
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
-#include <immintrin.h>
-namespace orbit
-{
-template <size_t NUM_PAUSES = 3>
-ORBIT_FORCE_INLINE void spin_pause() noexcept
-{
 
-  orbit::detail::constexpr_for<0, NUM_PAUSES>(_mm_pause);
-}
-} // namespace orbit
+  _mm_pause();
+
 #elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
-namespace orbit
-{
-template <size_t NUM_PAUSES = 3>
-ORBIT_FORCE_INLINE void spin_pause() noexcept
-{
 
-  orbit::detail::constexpr_for<0, NUM_PAUSES>(__yield);
-}
-} // namespace orbit
+#if defined(__GNUC__) || defined(__clang__)
+  asm volatile("yield");
 #else
-#warning "Unknown CPU architecture - using nop for spin loop pause."
-namespace orbit::detail
-{
-template <auto Start, auto End>
-ORBIT_FORCE_INLINE constexpr void repeat_nop() noexcept
-{
-  if constexpr (Start < End)
-  {
-    asm volatile("nop");
-    repeat_nop<Start + 1, End>();
-  }
-}
-} // namespace orbit::detail
-
-namespace orbit
-{
-template <size_t NUM_PAUSES = 100>
-ORBIT_FORCE_INLINE void spin_pause() noexcept
-{
-  orbit::detail::repeat_nop<0, NUM_PAUSES>();
-}
-} // namespace orbit
+  __yield();
 #endif
 
+#else
+#warning "Unknown CPU architecture - using nop for spin loop pause."
+
+#if defined(__GNUC__) || defined(__clang__)
+  asm volatile("nop");
+#else
+  __nop();
+#endif
+
+#endif
+}
+} // namespace orbit::detail
+
 namespace orbit
 {
+template <size_t NUM_PAUSES = 3>
+ORBIT_FORCE_INLINE void spin_pause() noexcept
+{
+
+  orbit::detail::constexpr_for<0, NUM_PAUSES>(detail::do_single_pause);
+}
+
 /*
 Disabling these warnings for the same reason as e.g. Folly - the vast majority of people are not building different parts of their application with different platform
 flags and then linking them later. If you are doing this for some reason (for example, using -mcpu or -march=native for only part of your build), then you should
 hardcode this to 64/128 as appropriate.
 */
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winterference-size"
+#endif
 constexpr size_t CACHE_LINE_SIZE = std::hardware_destructive_interference_size;
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 template <typename T>
 concept copyable = std::is_trivially_copyable_v<T> && (sizeof(T) <= 16); // Copy types that can be passed in two registers, otherwise move
@@ -102,7 +95,7 @@ concept power_of_two = std::has_single_bit(SIZE);
 @tparam MINIMISE_LATENCY When true, optimise for minimum latency, else optimise for maximum throughput
 @tparam NONBLOCKING When true, queue is truly lock-free. Can be set to false for even lower latency by removing a CAS operation.
 @tparam PAUSE_SHORT Number of pause instructions between each spin loop
-@tparam PAUSE_SHORT Number of pause instructions between each spin loop after failed CAS in throughput mode only
+@tparam PAUSE_LONG Number of pause instructions between each spin loop after failed CAS in throughput mode only
 
 To get the best possible performance, benchmarks can be run to determine the best possible pause lengths.
 Based on testing, sensible choices for x86 processors might be the following:
@@ -315,7 +308,7 @@ private:
       if constexpr (NONBLOCKING)
       {
         uint64_t prev_front_copy = prev_front;
-        _front.compare_exchange_weak(prev_front_copy, prev_front + 1, std::memory_order_relaxed, std::memory_order_relaxed); // Update back if nobody else did
+        _front.compare_exchange_weak(prev_front_copy, prev_front + 1, std::memory_order_relaxed, std::memory_order_relaxed); // Update front if nobody else did
       }
       else
       {

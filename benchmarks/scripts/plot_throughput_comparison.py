@@ -75,6 +75,7 @@ for filename in filenames:
     nrows = (nplots + ncols - 1) // ncols
 
     # Create a single large figure with a grid of subplots
+    plt.rcParams['hatch.color'] = '#555555'
     fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(15 * ncols, 12 * nrows), squeeze=False)
     axes_flat = axes.flatten()
 
@@ -102,11 +103,18 @@ for filename in filenames:
         means = stats['mean'].values
         stderrs = stats['stderr'].values
 
-        bars = ax.bar(x_pos, means, yerr=stderrs, capsize=4, alpha=0.8,
-                      error_kw={'linewidth': 1.5})
-        # colour every bar blue unless its label contains "spsc", in which case grey
-        for bar, label in zip(bars, stats.index):
-            bar.set_color(colour_mapping.colour_mapping[label.lower()])
+        bar_colors = []
+        bar_hatches = []
+        for label in stats.index:
+            bar_colors.append(colour_mapping.colour_mapping[label.lower()])
+            # Add hatching for atomic_queue as it only supports atomic types
+            if label.lower() == "atomic_queue":
+                bar_hatches.append("//")
+            else:
+                bar_hatches.append(None)
+    
+        for i, (x_pos_val, mean, sem, color, hatch) in enumerate(zip(x_pos, means, stderrs, bar_colors, bar_hatches)):
+            ax.bar(x_pos_val, mean, yerr=sem, capsize=6, color=color, hatch=hatch, width=0.8)
 
         ax.set_xticks(x_pos)
         ax.set_xticklabels([name for name in stats.index], rotation=45, ha='right')

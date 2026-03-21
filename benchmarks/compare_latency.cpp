@@ -40,13 +40,13 @@ public:
 
   void run_benchmark(int32_t num_values)
   {
-    do_run_benchmark("lat_mpmc_queue", _lat_queue1, _lat_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
-    do_run_benchmark("tp_mpmc_queue", _tp_queue1, _tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
-    do_run_benchmark("ultra_tp_mpmc_queue", _ultra_tp_queue1, _ultra_tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("lat_orbit_mpmc_queue", _lat_queue1, _lat_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("tp_orbit_mpmc_queue", _tp_queue1, _tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("ultra_tp_orbit_mpmc_queue", _ultra_tp_queue1, _ultra_tp_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
 
-    do_run_benchmark("lat_blocking_mpmc_queue", _lat_blocking_queue1, _lat_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
-    do_run_benchmark("tp_blocking_mpmc_queue", _tp_blocking_queue1, _tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
-    do_run_benchmark("ultra_tp_blocking_mpmc_queue", _ultra_tp_blocking_queue1, _ultra_tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("lat_blocking_orbit_mpmc_queue", _lat_blocking_queue1, _lat_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("tp_blocking_orbit_mpmc_queue", _tp_blocking_queue1, _tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
+    do_run_benchmark("ultra_tp_blocking_orbit_mpmc_queue", _ultra_tp_blocking_queue1, _ultra_tp_blocking_queue2, &latency_test::mpmc_queue_bounce_thread, num_values);
 
     do_run_benchmark("atomic_queue", _atomic_queue1, _atomic_queue2, &latency_test::atomic_queue_bounce_thread, num_values);
     do_run_benchmark("atomic_queue2", _atomic_queue21, _atomic_queue22, &latency_test::atomic_queue_bounce_thread, num_values);

@@ -53,13 +53,23 @@ def main():
 
     os.makedirs(os.path.dirname(args.output), exist_ok=True)
 
+    plt.rcParams['hatch.color'] = '#555555'
     fig, ax = plt.subplots(figsize=(10, 6))
     x = np.arange(len(labels))
     # choose grey color for any queue with 'spsc' in its name (case-insensitive)
     bar_colors = []
+    bar_hatches = []
     for label in labels:
         bar_colors.append(colour_mapping.colour_mapping[label.lower()])
-    ax.bar(x, means, yerr=sems, capsize=6, color=bar_colors)
+        # Add hatching for atomic_queue as it only supports atomic types
+        if label.lower() == "atomic_queue":
+            bar_hatches.append("//")
+        else:
+            bar_hatches.append(None)
+    
+    for i, (x_pos, mean, sem, color, hatch) in enumerate(zip(x, means, sems, bar_colors, bar_hatches)):
+        ax.bar(x_pos, mean, yerr=sem, capsize=6, color=color, hatch=hatch, width=0.8)
+    
     ax.set_xticks(x)
     ax.set_xticklabels(labels, rotation=45, ha="right")
     ax.set_ylabel("Time per bounce (ns)")
