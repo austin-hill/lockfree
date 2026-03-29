@@ -40,12 +40,20 @@ ORBIT_FORCE_INLINE void do_single_pause() noexcept
 
   _mm_pause();
 
-#elif defined(__arm__) || defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__aarch64__) || defined(_M_ARM64) || ((defined(__arm__) || defined(_M_ARM)) && defined(__ARM_ARCH) && __ARM_ARCH >= 7)
 
 #if defined(__GNUC__) || defined(__clang__)
   asm volatile("isb" ::: "memory");
 #else
   __isb(_ARM64_BARRIER_SY);
+#endif
+
+#elif defined(__arm__) || defined(_M_ARM)
+
+#if defined(__GNUC__) || defined(__clang__)
+  asm volatile("yield" ::: "memory");
+#else
+  __yield();
 #endif
 
 #else
@@ -105,6 +113,10 @@ Based on testing, sensible choices for x86 processors might be the following:
   - PAUSE_SHORT = 180 / NUM_CYCLES_PER_PAUSE
   - PAUSE_LONG = 3000 / NUM_CYCLES_PER_PAUSE (only used when maximising throughput)
 Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
+
+For non x86 users:
+If your CPU is ARMv7 or above, NUM_CYCLES_PER_PAUSE is instead the number of cycles a single ISB instruction takes, i.e. how long a pipeline refill takes.
+If your CPU is ARM and very old, or some other architecture, these parameters may not help much, as they encode either YIELD or NOP instructions in this case.
 */
 template <typename T, size_t SIZE, bool MINIMISE_LATENCY = true, bool NONBLOCKING = true, size_t PAUSE_SHORT = 3, size_t PAUSE_LONG = 40>
   requires power_of_two<SIZE> && std::is_default_constructible_v<T> && copyable_or_nothrow_move_assignable<T>
