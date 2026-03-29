@@ -127,10 +127,10 @@ void compare_pause_options()
 {
   constexpr std::array<size_t, 4> num_options = {1, 2, 4, 6};
   const int32_t num_values = 1000000;
-  const size_t num_test_runs = 2;
+  const size_t num_test_runs = 10;
 
-  constexpr std::array<size_t, 3> short_pause_options = {1, 2, 3};
-  constexpr std::array<size_t, 4> long_pause_options = {40, 80, 120, 200};
+  constexpr std::array<size_t, 2> short_pause_options = {2, 3};
+  constexpr std::array<size_t, 4> long_pause_options = {20, 40, 100, 200};
 
   for (size_t test_count = 0; test_count < num_test_runs; ++test_count)
   {
