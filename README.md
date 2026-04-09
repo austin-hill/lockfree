@@ -6,7 +6,7 @@ This is a high performance lock-free multi-producer multi-consumer bounded queue
 
 There are a number of existing lock-free queue implementations in C++ at this point. Why should you use this one?
 
-- It is [faster](#benchmarks) than other implementations in most cases, on both x86 and ARM architectures.
+- It is [faster](#benchmarks) than other implementations in many cases, on both x86 and ARM architectures.
 - There are no arbitrary restrictions on element type: The only limitations in place are by choice, to enforce effective usage.
     - Elements must be default constructible. They are stored contiguously in a `std::array`. If your type doesn't have a default constructor, you should probably be wrapping it in a unique pointer anyway.
     - For non-trivially copyable types of size greater than 16 bytes, all operations are move-only. Again, if your type doesn't work with this, you should be wrapping it in a unique pointer.
@@ -18,11 +18,13 @@ There are a number of existing lock-free queue implementations in C++ at this po
 More precisely, in terms of performance figures, you should consider using this queue in the following circumstances:
 
 - You want the lowest possible latency MPMC queue in any situation ([benchmarks](#latency)).
-- You want the highest throughput thread safe queue in any situation (including SPSC) ([benchmarks](#throughput)).
+- You want the highest throughput thread safe FIFO queue (including SPSC) ([benchmarks](#throughput)).
+- You want the highest throughput thread safe queue for low to moderate thread counts (e.g. up to 8 producers and 8 consumers) ([benchmarks](#throughput)).
 
-Obviously, if in doubt run your own benchmarks to choose the best solution for your use case! There are of course some cases where better solutions exist elsewhere. We list some here:
+Obviously, if in doubt run your own benchmarks to choose the best solution for your platform and use case! There are of course some cases where better solutions exist elsewhere. We list some here:
 
 - You need an unbounded queue. In which case, a block-based linked queue such as `xenium/ramalhete_queue` would be your best bet, both in terms of latency and throughput.
+- You don't care about FIFO behaviour and need the maximum possible throughput for high thread counts. In which case a distributed queue design such as as `moodycamel::concurrentqueue` should perform better.
 - You only need blocking `push` and `pop` operations and are only pushing atomic types to the queue. In which case, `atomic_queue` used in SPSC mode should give better results.
 - You are running on a virtualised CPU. I doubt that some of the optimisations used here would play well with the scheduler in this case...
 
@@ -134,7 +136,7 @@ Depending on your CPU architecture, your spin pause length may differ significan
   - PAUSE_SHORT = 180 / NUM_CYCLES_PER_PAUSE
   - PAUSE_LONG = 3000 / NUM_CYCLES_PER_PAUSE (only used when maximising throughput)
 
-Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models.
+Where NUM_CYCLES_PER_PAUSE is dependent on the target CPU - on modern AMD/Intel CPUs it is likely around the range of 30-150 clock cycles, but may be shorter on some older models. Note that in general the higher the thread count, the longer PAUSE_LONG should be.
 
 For non x86 users, if your CPU is ARMv7 or above, NUM_CYCLES_PER_PAUSE is instead the number of cycles a single ISB instruction takes, i.e. how long a pipeline refill takes. If your CPU is ARM and very old, or some other architecture, these parameters may not help much, as they encode either YIELD or NOP instructions in this case.
 
